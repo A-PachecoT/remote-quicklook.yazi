@@ -49,8 +49,9 @@ run  = "plugin remote-quicklook reveal"
 desc = "Reveal in the Mac's Finder"
 ```
 
-If you share the keymap between the Mac and the remote box, bind the plugin only in the
-remote's config, or wrap it in a script that uses `qlmanage` directly when it exists.
+On the Mac itself the plugin opens the file in place (no ssh, no copy), so a keymap
+shared between the Mac and the remote box works on both. `host` is only needed on the
+remote side.
 
 ## Notes
 

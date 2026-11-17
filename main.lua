@@ -4,7 +4,8 @@
 -- You run yazi on a Linux machine (over ssh, Eternal Terminal, mosh, a multiplexer)
 -- but you are looking at it from a Mac. This plugin copies the hovered file to a
 -- cache on the Mac over ssh and opens it there: `preview` = Quick Look,
--- `reveal` = Finder. See README.md for setup.
+-- `reveal` = Finder. On a Mac it opens the file in place, so one keymap works on both
+-- sides. See README.md for setup.
 
 local M = {}
 
@@ -44,6 +45,22 @@ function M:setup(opts)
 	self.max_mb = opts.max_mb or 500
 end
 
+-- Running on the Mac itself: no copy, open the real file.
+function M.local_open(mode, url)
+	local cmd = mode == "preview"
+			and Command("sh"):arg({
+				"-c",
+				[[(qlmanage -p "$1" >/dev/null 2>&1 &); sleep 0.1; osascript -e 'tell application "System Events" to set frontmost of process "qlmanage" to true' >/dev/null 2>&1 || true]],
+				"sh",
+				url,
+			})
+		or Command("open"):arg({ "-R", url })
+	local out = cmd:stdin(Command.NULL):stdout(Command.NULL):stderr(Command.PIPED):output()
+	if out and not out.status.success then
+		ya.notify { title = "remote-quicklook", content = out.stderr, timeout = 5, level = "error" }
+	end
+end
+
 function M:entry(job)
 	local mode = job.args[1] or "preview"
 	if mode ~= "preview" and mode ~= "reveal" then
@@ -51,6 +68,9 @@ function M:entry(job)
 	end
 
 	local s = state()
+	if s.url and not s.is_dir and ya.target_os() == "macos" then
+		return M.local_open(mode, s.url)
+	end
 	if not s.host then
 		return ya.notify {
 			title = "remote-quicklook",
